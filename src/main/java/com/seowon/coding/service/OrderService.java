@@ -9,6 +9,7 @@ import com.seowon.coding.domain.repository.ProcessingStatusRepository;
 import com.seowon.coding.domain.repository.ProductRepository;
 import com.seowon.coding.dto.OrderRequestDTO;
 import lombok.RequiredArgsConstructor;
+import org.aspectj.weaver.ast.Or;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,27 +61,21 @@ public class OrderService {
 
     public Order placeOrder(String customerName, String customerEmail, List<Long> productIds, List<Integer> quantities) {
         // TODO #3: 구현 항목
-        Order newOrder = Order.builder()
-                .customerName(customerName)
-                .customerEmail(customerEmail)
-                .build();
+        Order newOrder = createOrder(customerName, customerEmail);
 
         List<Product> products = productRepository.findAllById(productIds);
         for (int i = 0; i < products.size(); i++){
-            newOrder.addItem(OrderItem.builder()
-                    .order(newOrder)
-                    .product(products.get(i))
-                    .quantity(quantities.get(i))
-                    .build());
+            Product product = products.get(i);
+            Integer quantity = quantities.get(i);
 
-            products.get(i).decreaseStock(quantities.get(i));
+            newOrder.addItem(createOrderItem(newOrder, product, quantity));
+            product.decreaseStock(quantity);
         }
-
-        newOrder.setStatus(PENDING);
-        newOrder.setOrderDate(LocalDateTime.now());
 
         return orderRepository.save(newOrder);
     }
+
+
 
     /**
      * TODO #4 (리펙토링): Service 에 몰린 도메인 로직을 도메인 객체 안으로 이동
@@ -113,8 +108,7 @@ public class OrderService {
             Long pid = req.getProductId();
             int qty = req.getQuantity();
 
-            Product product = productRepository.findById(pid)
-                    .orElseThrow(() -> new IllegalArgumentException("Product not found: " + pid));
+            Product product = getProductById(pid);
             if (qty <= 0) {
                 throw new IllegalArgumentException("quantity must be positive: " + qty);
             }
@@ -140,6 +134,11 @@ public class OrderService {
         order.setTotalAmount(subtotal.add(shipping).subtract(discount));
         order.setStatus(PROCESSING);
         return orderRepository.save(order);
+    }
+
+    private Product getProductById(Long pid) {
+        return productRepository.findById(pid)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + pid));
     }
 
     /**
@@ -178,4 +177,23 @@ public class OrderService {
         processingStatusRepository.save(ps);
     }
 
+
+    private static Order createOrder(String customerName, String customerEmail) {
+        return Order.builder()
+                .customerName(customerName)
+                .customerEmail(customerEmail)
+                .status(PENDING)
+                .orderDate(LocalDateTime.now())
+                .totalAmount(BigDecimal.ZERO)
+                .items(new ArrayList<>())
+                .build();
+    }
+
+    private static OrderItem createOrderItem(Order order, Product product, int quantity) {
+        return OrderItem.builder()
+                .order(order)
+                .product(product)
+                .quantity(quantity)
+                .build();
+    }
 }
