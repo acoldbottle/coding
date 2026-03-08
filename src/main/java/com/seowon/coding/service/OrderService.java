@@ -115,11 +115,19 @@ public class OrderService {
      */
     @Transactional
     public void bulkShipOrdersParent(String jobId, List<Long> orderIds) {
-        ProcessingStatus ps = processingStatusRepository.findByJobId(jobId)
+
+        ProcessingStatus ps = processingStatusRepository.findByJobId(jobId) // 진행상태
                 .orElseGet(() -> processingStatusRepository.save(ProcessingStatus.builder().jobId(jobId).build()));
         ps.markRunning(orderIds == null ? 0 : orderIds.size());
+        /**
+         * jpa 변경감지를 활용하면 되니까 save 는 불필요한것 같습니다.
+         */
         processingStatusRepository.save(ps);
 
+
+        /***
+         * 위에 로직들과 아래 로직들을 분리하여 각각 다른 트랜잭션에서 수행되도록 하면 좋을것같습니다.
+         */
         int processed = 0;
         for (Long orderId : (orderIds == null ? List.<Long>of() : orderIds)) {
             try {
@@ -132,6 +140,9 @@ public class OrderService {
         }
         ps = processingStatusRepository.findByJobId(jobId).orElse(ps);
         ps.markCompleted();
+        /***
+         * 여기서도 jpa 변경감지를 활용하면 되니까 save 는 불필요한것 같습니다.
+         */
         processingStatusRepository.save(ps);
     }
 
