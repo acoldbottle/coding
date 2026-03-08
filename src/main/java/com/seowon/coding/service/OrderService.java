@@ -86,22 +86,8 @@ public class OrderService {
                                String customerEmail,
                                List<OrderProduct> orderProducts,
                                String couponCode) {
-        if (customerName == null || customerEmail == null) {
-            throw new IllegalArgumentException("customer info required");
-        }
-        if (orderProducts == null || orderProducts.isEmpty()) {
-            throw new IllegalArgumentException("orderReqs invalid");
-        }
-
-        Order order = Order.builder()
-                .customerName(customerName)
-                .customerEmail(customerEmail)
-                .status(PENDING)
-                .orderDate(LocalDateTime.now())
-                .items(new ArrayList<>())
-                .totalAmount(BigDecimal.ZERO)
-                .build();
-
+        isValidOrder(customerName, customerEmail, orderProducts);
+        Order order = createOrder(customerName, customerEmail);
 
         BigDecimal subtotal = BigDecimal.ZERO;
         for (OrderProduct req : orderProducts) {
@@ -109,36 +95,16 @@ public class OrderService {
             int qty = req.getQuantity();
 
             Product product = getProductById(pid);
-            if (qty <= 0) {
-                throw new IllegalArgumentException("quantity must be positive: " + qty);
-            }
-            if (product.getStockQuantity() < qty) {
-                throw new IllegalStateException("insufficient stock for product " + pid);
-            }
+            isValidProductQuantity(qty, product, pid);
 
-            OrderItem item = OrderItem.builder()
-                    .order(order)
-                    .product(product)
-                    .quantity(qty)
-                    .price(product.getPrice())
-                    .build();
-            order.getItems().add(item);
+            OrderItem item = createOrderItem(order, product, qty);
+            order.addItem(item);
 
             product.decreaseStock(qty);
             subtotal = subtotal.add(product.getPrice().multiply(BigDecimal.valueOf(qty)));
         }
-
-        BigDecimal shipping = subtotal.compareTo(new BigDecimal("100.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("5.00");
-        BigDecimal discount = (couponCode != null && couponCode.startsWith("SALE")) ? new BigDecimal("10.00") : BigDecimal.ZERO;
-
-        order.setTotalAmount(subtotal.add(shipping).subtract(discount));
-        order.setStatus(PROCESSING);
+        order.checkoutOrder(subtotal, couponCode);
         return orderRepository.save(order);
-    }
-
-    private Product getProductById(Long pid) {
-        return productRepository.findById(pid)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + pid));
     }
 
     /**
@@ -194,6 +160,30 @@ public class OrderService {
                 .order(order)
                 .product(product)
                 .quantity(quantity)
+                .price(product.getPrice())
                 .build();
+    }
+
+    private static void isValidOrder(String customerName, String customerEmail, List<OrderProduct> orderProducts) {
+        if (customerName == null || customerEmail == null) {
+            throw new IllegalArgumentException("customer info required");
+        }
+        if (orderProducts == null || orderProducts.isEmpty()) {
+            throw new IllegalArgumentException("orderReqs invalid");
+        }
+    }
+
+    private static void isValidProductQuantity(int qty, Product product, Long pid) {
+        if (qty <= 0) {
+            throw new IllegalArgumentException("quantity must be positive: " + qty);
+        }
+        if (product.getStockQuantity() < qty) {
+            throw new IllegalStateException("insufficient stock for product " + pid);
+        }
+    }
+
+    private Product getProductById(Long pid) {
+        return productRepository.findById(pid)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + pid));
     }
 }

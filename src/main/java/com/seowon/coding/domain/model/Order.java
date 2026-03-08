@@ -56,6 +56,14 @@ public class Order {
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+
+    public void checkoutOrder(BigDecimal subtotal, String couponCode) {
+
+        BigDecimal shipping = subtotal.compareTo(new BigDecimal("100.00")) >= 0 ? BigDecimal.ZERO : new BigDecimal("5.00");
+        BigDecimal discount = (couponCode != null && couponCode.startsWith("SALE")) ? new BigDecimal("10.00") : BigDecimal.ZERO;
+        this.setTotalAmount(subtotal.add(shipping).subtract(discount));
+        markAsProcessing();
+    }
     
     public void markAsProcessing() {
         this.status = OrderStatus.PROCESSING;
