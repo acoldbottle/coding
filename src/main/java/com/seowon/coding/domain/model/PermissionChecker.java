@@ -11,6 +11,8 @@ class PermissionChecker {
      * TODO #7: 코드를 최적화하세요
      * 테스트 코드`PermissionCheckerTest`를 활용하시면 작업 결과를 검증 할 수 있습니다.
      */
+
+
     public static boolean hasPermission(
             String userId,
             String targetResource,
@@ -19,6 +21,7 @@ class PermissionChecker {
             List<UserGroup> groups,
             List<Policy> policies
     ) {
+
         for (User user : users) {
             if (user.id.equals(userId)) {
                 for (String groupId : user.groupIds) {
@@ -33,12 +36,15 @@ class PermissionChecker {
                                                 return true;
                                             }
                                         }
+                                        break;
                                     }
                                 }
                             }
+                            break;
                         }
                     }
                 }
+                return false;
             }
         }
         return false;
