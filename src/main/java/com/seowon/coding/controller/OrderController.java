@@ -1,6 +1,7 @@
 package com.seowon.coding.controller;
 
 import com.seowon.coding.domain.model.Order;
+import com.seowon.coding.dto.OrderRequestDTO;
 import com.seowon.coding.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -67,4 +68,9 @@ public class OrderController {
      * }
      */
     //
+    @PostMapping("")
+    public ResponseEntity<Void> createOrder(OrderRequestDTO requestDTO) {
+        orderService.placeOrder(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 }
