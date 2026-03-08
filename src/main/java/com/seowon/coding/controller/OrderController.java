@@ -70,7 +70,7 @@ public class OrderController {
     //
     @PostMapping("")
     public ResponseEntity<Void> createOrder(OrderRequestDTO requestDTO) {
-        orderService.placeOrder(requestDTO);
+        orderService.placeOrder(requestDTO.getCustomerName(), requestDTO.getCustomerEmail(), requestDTO.getProductIds(), requestDTO.getQuantities());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
