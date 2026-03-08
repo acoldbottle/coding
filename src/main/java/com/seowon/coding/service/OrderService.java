@@ -7,6 +7,7 @@ import com.seowon.coding.domain.model.Product;
 import com.seowon.coding.domain.repository.OrderRepository;
 import com.seowon.coding.domain.repository.ProcessingStatusRepository;
 import com.seowon.coding.domain.repository.ProductRepository;
+import com.seowon.coding.dto.OrderRequestDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -17,6 +18,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static com.seowon.coding.domain.model.Order.OrderStatus.*;
 
 @Service
 @RequiredArgsConstructor
@@ -57,14 +60,26 @@ public class OrderService {
 
     public Order placeOrder(String customerName, String customerEmail, List<Long> productIds, List<Integer> quantities) {
         // TODO #3: 구현 항목
-        // * 주어진 고객 정보로 새 Order를 생성
-        // * 지정된 Product를 주문에 추가
-        // * order 의 상태를 PENDING 으로 변경
-        // * orderDate 를 현재시간으로 설정
-        // * order 를 저장
-        // * 각 Product 의 재고를 수정
-        // * placeOrder 메소드의 시그니처는 변경하지 않은 채 구현하세요.
-        return null;
+        Order newOrder = Order.builder()
+                .customerName(customerName)
+                .customerEmail(customerEmail)
+                .build();
+
+        List<Product> products = productRepository.findAllById(productIds);
+        for (int i = 0; i < products.size(); i++){
+            newOrder.addItem(OrderItem.builder()
+                    .order(newOrder)
+                    .product(products.get(i))
+                    .quantity(quantities.get(i))
+                    .build());
+
+            products.get(i).decreaseStock(quantities.get(i));
+        }
+
+        newOrder.setStatus(PENDING);
+        newOrder.setOrderDate(LocalDateTime.now());
+
+        return orderRepository.save(newOrder);
     }
 
     /**
@@ -86,7 +101,7 @@ public class OrderService {
         Order order = Order.builder()
                 .customerName(customerName)
                 .customerEmail(customerEmail)
-                .status(Order.OrderStatus.PENDING)
+                .status(PENDING)
                 .orderDate(LocalDateTime.now())
                 .items(new ArrayList<>())
                 .totalAmount(BigDecimal.ZERO)
@@ -123,7 +138,7 @@ public class OrderService {
         BigDecimal discount = (couponCode != null && couponCode.startsWith("SALE")) ? new BigDecimal("10.00") : BigDecimal.ZERO;
 
         order.setTotalAmount(subtotal.add(shipping).subtract(discount));
-        order.setStatus(Order.OrderStatus.PROCESSING);
+        order.setStatus(PROCESSING);
         return orderRepository.save(order);
     }
 
@@ -144,7 +159,7 @@ public class OrderService {
         for (Long orderId : (orderIds == null ? List.<Long>of() : orderIds)) {
             try {
                 // 오래 걸리는 작업 이라는 가정 시뮬레이션 (예: 외부 시스템 연동, 대용량 계산 등)
-                orderRepository.findById(orderId).ifPresent(o -> o.setStatus(Order.OrderStatus.PROCESSING));
+                orderRepository.findById(orderId).ifPresent(o -> o.setStatus(PROCESSING));
                 // 중간 진행률 저장
                 this.updateProgressRequiresNew(jobId, ++processed, orderIds.size());
             } catch (Exception e) {
